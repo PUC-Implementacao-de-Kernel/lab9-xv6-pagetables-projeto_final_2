@@ -486,8 +486,37 @@ ismapped(pagetable_t pagetable, uint64 va)
 }
 
 void
+vmprintwalk(pagetable_t pagetable, int level, uint64 va){
+  
+  int index;
+  uint64 childva;	// virtual address of the next pte or pa
+  pte_t pte;		// address of the page table entry
+  uint64 pa;		// physical address or next page table
+
+
+  for(index = 0; index < 512; index++){
+    pte = pagetable[index];
+    pa = PTE2PA(pte);
+    childva = va | ((uint64)index << PXSHIFT(level));	// PXSHIFT works as 12 + 9*(level)
+
+    if(pte & PTE_V){
+      printf("%s %d: va %p pte %p pa %p\n", level == 2? ".." : (level == 1? ".. .." : ".. .. .."), myproc()->pid, (uint64*)childva, (uint64*)pte, (uint64*)pa);
+
+      if(level > 0 && ((pte & (PTE_R | PTE_W | PTE_X)) == 0)){	// valid but not leaf, recursion
+        vmprintwalk((pagetable_t) pa, level-1, childva);
+      }
+    }
+  }
+
+  return;
+}
+
+void
 vmprint(pagetable_t pagetable)
 {
   printf("page table %p\n", pagetable);
-  printf("TODO: implemente vmprint() em kernel/vm.c\n");
+
+  //printf("usyscall va: %p\n", (struct usyscall *) USYSCALL); // I used this to see the virtual address of the usyscall: 0x0000003fffffd000
+
+  vmprintwalk(pagetable, 2, 0x0000000000000000);
 }
